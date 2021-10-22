@@ -9,83 +9,55 @@
 
     Autorzy: Mieszko Dziadowiec, Aleksander Reiter
 """
-from easyAI import TwoPlayerGame, AI_Player, Human_Player, Negamax
+from easyAI import TwoPlayerGame, Human_Player, AI_Player, Negamax
 import chess
-
-
-class Chess(TwoPlayerGame):
-
+import chess.engine
+import time
+engine = chess.engine.SimpleEngine.popen_uci('D:\\pobrane\\stockfish.exe')
+class ChessGame(TwoPlayerGame):
     def __init__(self, players=None):
-        self.players = players
         self.board = chess.Board()
-        self.moves = 0
-        self.current_player = 1  # player 1 starts
-
+        self.players = players
+        self.current_player = 1
+        self.start_time = time.time()
     def possible_moves(self):
-        # pobieramy listę możliwych ruchów dla danego użytkownika
-        self.moves = list(self.board.legal_moves)
-        return self.moves
-
+        return list(self.board.legal_moves)
     def make_move(self, move):
         self.board.push(move)
-
     def unmake_move(self, move):
-        # usuwamy ostatni ruch ze stosu
         self.board.pop()
-
+    def win(self):
+        return self.board.is_variant_win()
     def is_over(self):
-        return self.board.is_game_over(claim_draw=True)
-
-    def scoring(self):
-        score = 0
-        for move in self.possible_moves():
-            try:
-                opponent_piece = self.board.piece_at(chess.parse_square(str(move)[:-2]))
-            except:
-                opponent_piece = None
-            # Przypisanie punktów za bicie pionków
-            if opponent_piece is not None:
-                if opponent_piece.piece_type == 1:
-                    score += 10
-                elif opponent_piece.piece_type == 2:
-                    score += 30
-                elif opponent_piece.piece_type == 3:
-                    score += 30
-                elif opponent_piece.piece_type == 4:
-                    score += 50
-                elif opponent_piece.piece_type == 5:
-                    score += 90
-                elif opponent_piece.piece_type == 6:
-                    score += 40
-            # premiujemy ruch dający szacha
-            if self.board.gives_check(move):
-                return 2000
-        # punktami karnymi zmuszamy AI do nie powtarzania się
-        if self.board.is_repetition(2):
-            score -= 150
-        # punkty karne za dążenie do przegranej
-        if self.board.is_stalemate():
-            score -= 1000
-        if self.board.is_check():
-            score -= 500
-        if self.board.is_checkmate():
-            score -= 2000
-        if self.board.can_claim_fifty_moves() or self.board.can_claim_threefold_repetition():
-            score -= 500
-        return score
-
+        return self.board.is_game_over()
     def show(self):
+        print(f'Time of execution: {time.time() - self.start_time} seconds')
         print(self.board)
-        outcome = self.board.outcome(claim_draw=True)
+        outcome = self.board.outcome()
         if outcome is not None:
-            winner = "WHITE" if outcome.winner is True else "BLACK"
-            print(outcome.termination.name, winner, outcome.result())
-
-
-if __name__ == "__main__":
-    print(__doc__)
-    ai = Negamax(3, win_score=2000)
-
-    # game = CHess([AI_Player(ai), Human_Player()])
-    game = Chess([AI_Player(ai), AI_Player(ai)])
-    game.play()
+            print(f'Termination: {outcome.termination.name}, result: {outcome.result()}')
+        self.start_time = time.time()
+        info = engine.analyse(self.board, chess.engine.Limit(depth=10))
+        print("Score:", info["score"])
+        moves = list(self.board.legal_moves)
+        print(f'Probably best move: {info["pv"][0]}')
+        print(moves)
+    def scoring(self):
+        if self.board.is_checkmate():
+            return -100000
+        info = engine.analyse(self.board, chess.engine.Limit(depth=20))
+        multiplier = 1
+        kara = 0
+        #if self.current_player == 1:
+        #    multiplier = 0.3
+        #    #kara = randrange(100, 8000)
+        try:
+            return info["score"].relative.cp * multiplier - kara
+        except:
+            return (20000 - 2000 * info["score"].relative.moves) * multiplier - kara
+# Start a match (and store the history of moves when it ends)
+ai = Negamax(1, win_score=100000)
+ai2 = Negamax(1)
+#game = ChessGame( [ AI_Player(ai), Human_Player() ] )
+game = ChessGame( [ Human_Player(), AI_Player(ai) ] )
+history = game.play()
