@@ -99,6 +99,7 @@ class ChessGame(TwoPlayerGame):
 
 
 # Start a match (and store the history of moves when it ends)
+print(__doc__)
 ai = Negamax(1, win_score=20000)
 #game = ChessGame( [ Human_Player(), AI_Player(ai) ] )
 game = ChessGame( [ AI_Player(ai), AI_Player(ai) ] )
